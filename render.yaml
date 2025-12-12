@@ -1,0 +1,25 @@
+services:
+  # Web Service
+  - type: web
+    name: youtube-downloader
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: PYTHON_VERSION
+        value: 3.11
+    buildCommand: ""
+    startCommand: ""
+    disk:
+      name: youtube-downloader-disk
+      mountPath: /app/temp
+      sizeGB: 1
+
+# Global configuration
+version: "1"
+runtime: "docker"

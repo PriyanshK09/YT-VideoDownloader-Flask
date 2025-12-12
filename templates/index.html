@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Downloader</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .off-white-bg {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .download-btn {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+        }
+        .loader {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #4f46e5;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .quality-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+        }
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .text-primary {
+            color: #4f46e5;
+        }
+        .bg-primary {
+            background-color: #4f46e5;
+        }
+        .bg-secondary {
+            background-color: #6b7280;
+        }
+        .text-gray-700 {
+            color: #374151;
+        }
+        .text-gray-800 {
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="off-white-bg min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <header class="text-center mb-8 fade-in">
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+                    <i class="fab fa-youtube text-red-500 mr-3"></i>
+                    YouTube Video Downloader
+                </h1>
+                <p class="text-gray-600 text-lg">
+                    Download videos and audio from YouTube in various formats - Fast, Free, and Efficient
+                </p>
+            </header>
+
+            <!-- Main Content -->
+            <main class="glass-effect rounded-2xl shadow-2xl p-6 md:p-8 fade-in">
+                <!-- URL Input Section -->
+                <section class="mb-8">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-grow relative">
+                            <input 
+                                type="text" 
+                                id="youtubeUrl" 
+                                placeholder="Paste YouTube URL here..." 
+                                class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition duration-200"
+                            >
+                            <i class="fas fa-link absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        </div>
+                        <button 
+                            id="fetchBtn" 
+                            class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200 flex items-center justify-center download-btn"
+                        >
+                            <span id="btnText">Get Video</span>
+                            <div id="loader" class="loader ml-2"></div>
+                        </button>
+                    </div>
+                    <div id="error" class="text-red-500 text-sm mt-2 hidden"></div>
+                    <div id="progressContainer" class="mt-2 hidden">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </section>
+
+                <!-- Video Info Section -->
+                <section id="videoInfo" class="hidden fade-in">
+                    <div class="bg-white rounded-xl overflow-hidden shadow-lg">
+                        <div class="md:flex">
+                            <div class="md:w-1/3">
+                                <img id="thumbnail" src="" alt="Video Thumbnail" class="w-full h-auto object-cover">
+                            </div>
+                            <div class="p-6 md:w-2/3">
+                                <h2 id="videoTitle" class="text-xl font-semibold text-gray-800 mb-4 line-clamp-2"></h2>
+                                
+                                <h3 class="font-medium text-gray-700 mb-4">Download Options:</h3>
+                                <div id="downloadOptions" class="space-y-3">
+                                    <!-- Options will be populated by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Features Section -->
+                <section class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="text-center p-4 bg-white bg-opacity-70 rounded-lg border border-gray-200">
+                        <i class="fas fa-bolt text-3xl text-yellow-500 mb-2"></i>
+                        <h4 class="font-semibold text-gray-800">Lightning Fast</h4>
+                        <p class="text-sm text-gray-600">Optimized for speed with caching</p>
+                    </div>
+                    <div class="text-center p-4 bg-white bg-opacity-70 rounded-lg border border-gray-200">
+                        <i class="fas fa-shield-alt text-3xl text-green-500 mb-2"></i>
+                        <h4 class="font-semibold text-gray-800">Safe & Secure</h4>
+                        <p class="text-sm text-gray-600">No data stored, privacy first</p>
+                    </div>
+                    <div class="text-center p-4 bg-white bg-opacity-70 rounded-lg border border-gray-200">
+                        <i class="fas fa-mobile-alt text-3xl text-indigo-500 mb-2"></i>
+                        <h4 class="font-semibold text-gray-800">Mobile Friendly</h4>
+                        <p class="text-sm text-gray-600">Works on all devices</p>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer -->
+            <footer class="text-center mt-8 text-gray-600">
+                <p class="mb-2">
+                    <i class="fas fa-code mr-2"></i>
+                    Made with ❤️ by <a href="https://github.com/PriyanshK09" target="_blank" class="text-indigo-600 hover:text-indigo-800 transition">Priyansh</a>
+                </p>
+                <p class="text-sm">
+                    © 2025-26 YouTube Video Downloader | Free and Open Source
+                </p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // Cache for storing video info
+        const videoCache = new Map();
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const youtubeUrl = document.getElementById('youtubeUrl');
+            const fetchBtn = document.getElementById('fetchBtn');
+            const videoInfo = document.getElementById('videoInfo');
+            const videoTitle = document.getElementById('videoTitle');
+            const thumbnail = document.getElementById('thumbnail');
+            const downloadOptions = document.getElementById('downloadOptions');
+            const errorElement = document.getElementById('error');
+            const loader = document.getElementById('loader');
+            const btnText = document.getElementById('btnText');
+            const progressBar = document.getElementById('progressBar');
+            const progressContainer = document.getElementById('progressContainer');
+
+            let currentVideoInfo = null;
+            let abortController = null;
+
+            fetchBtn.addEventListener('click', fetchVideoInfo);
+            youtubeUrl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    fetchVideoInfo();
+                }
+            });
+
+            // Add paste event listener for better UX
+            youtubeUrl.addEventListener('paste', (e) => {
+                setTimeout(() => {
+                    if (youtubeUrl.value.trim()) {
+                        fetchVideoInfo();
+                    }
+                }, 100);
+            });
+
+            async function fetchVideoInfo() {
+                const url = youtubeUrl.value.trim();
+                
+                if (!url) {
+                    showError('Please enter a YouTube URL');
+                    return;
+                }
+
+                // Cancel previous request if exists
+                if (abortController) {
+                    abortController.abort();
+                }
+                abortController = new AbortController();
+
+                try {
+                    showLoading(true);
+                    hideError();
+                    hideVideoInfo();
+                    
+                    // Check cache first
+                    const cacheKey = url;
+                    if (videoCache.has(cacheKey)) {
+                        const cachedData = videoCache.get(cacheKey);
+                        displayVideoInfo(cachedData);
+                        showVideoInfo();
+                        showLoading(false);
+                        return;
+                    }
+
+                    const response = await fetch('/get_video_info', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ url }),
+                        signal: abortController.signal
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to fetch video info');
+                    }
+
+                    currentVideoInfo = data;
+                    
+                    // Cache the result
+                    videoCache.set(cacheKey, data);
+                    
+                    displayVideoInfo(data);
+                    showVideoInfo();
+                    
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        showError(error.message || 'An error occurred. Please try again.');
+                        hideVideoInfo();
+                    }
+                } finally {
+                    showLoading(false);
+                    hideProgress();
+                }
+            }
+
+            function displayVideoInfo(data) {
+                videoTitle.textContent = data.title;
+                thumbnail.src = data.thumbnail;
+                thumbnail.onerror = () => {
+                    thumbnail.src = `https://img.youtube.com/vi/${extractVideoId(youtubeUrl.value)}/mqdefault.jpg`;
+                };
+                
+                // Clear previous options
+                downloadOptions.innerHTML = '';
+                
+                // Group formats by type
+                const videoFormats = data.formats.filter(f => f.type === 'video');
+                const audioFormats = data.formats.filter(f => f.type === 'audio');
+                
+                // Add video download options
+                if (videoFormats.length > 0) {
+                    const videoGroup = document.createElement('div');
+                    videoGroup.className = 'mb-4';
+                    videoGroup.innerHTML = `
+                        <h4 class="font-medium text-gray-700 mb-3 flex items-center">
+                            <i class="fas fa-video mr-2 text-blue-500"></i>
+                            Video Formats:
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            ${videoFormats.map(format => `
+                                <button 
+                                    onclick="downloadVideo('${format.format_id}')"
+                                    class="bg-blue-100 hover:bg-blue-200 text-blue-800 py-2 px-4 rounded-lg text-sm font-medium transition duration-200 text-left flex items-center justify-between download-btn"
+                                >
+                                    <span>
+                                        <i class="fas fa-download mr-2"></i> 
+                                        ${format.quality}
+                                        ${format.filesize_mb ? `(${format.filesize_mb} MB)` : ''}
+                                    </span>
+                                    <span class="quality-badge bg-blue-500 text-white">${format.ext.toUpperCase()}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                    downloadOptions.appendChild(videoGroup);
+                }
+                
+                // Add audio download options
+                if (audioFormats.length > 0) {
+                    const audioGroup = document.createElement('div');
+                    audioGroup.className = 'mt-4';
+                    audioGroup.innerHTML = `
+                        <h4 class="font-medium text-gray-700 mb-3 flex items-center">
+                            <i class="fas fa-music mr-2 text-green-500"></i>
+                            Audio Format:
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            ${audioFormats.map(format => `
+                                <button 
+                                    onclick="downloadVideo('${format.format_id}')"
+                                    class="bg-green-100 hover:bg-green-200 text-green-800 py-2 px-4 rounded-lg text-sm font-medium transition duration-200 text-left flex items-center justify-between download-btn"
+                                >
+                                    <span>
+                                        <i class="fas fa-music mr-2"></i> 
+                                        ${format.quality}
+                                        ${format.filesize_mb ? `(${format.filesize_mb} MB)` : ''}
+                                    </span>
+                                    <span class="quality-badge bg-green-500 text-white">${format.ext.toUpperCase()}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    `;
+                    downloadOptions.appendChild(audioGroup);
+                }
+                
+                // Make downloadVideo function globally available
+                window.downloadVideo = (formatId) => {
+                    const url = new URL(window.location.href);
+                    url.pathname = '/download';
+                    url.search = new URLSearchParams({
+                        url: youtubeUrl.value.trim(),
+                        itag: formatId
+                    }).toString();
+                    
+                    // Show download progress
+                    showProgress();
+                    
+                    // Create download link
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.target = '_blank';
+                    link.click();
+                    
+                    // Hide progress after delay
+                    setTimeout(hideProgress, 3000);
+                };
+            }
+
+            function extractVideoId(url) {
+                const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+                const match = url.match(regex);
+                return match ? match[1] : null;
+            }
+
+            function showLoading(show) {
+                if (show) {
+                    btnText.textContent = 'Fetching...';
+                    loader.style.display = 'block';
+                    fetchBtn.disabled = true;
+                    fetchBtn.classList.add('opacity-75');
+                } else {
+                    btnText.textContent = 'Get Video';
+                    loader.style.display = 'none';
+                    fetchBtn.disabled = false;
+                    fetchBtn.classList.remove('opacity-75');
+                }
+            }
+
+            function showProgress() {
+                progressContainer.classList.remove('hidden');
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 10;
+                    progressBar.style.width = progress + '%';
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                    }
+                }, 200);
+            }
+
+            function hideProgress() {
+                progressContainer.classList.add('hidden');
+                progressBar.style.width = '0%';
+            }
+
+            function showError(message) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+                errorElement.classList.add('pulse');
+            }
+
+            function hideError() {
+                errorElement.classList.add('hidden');
+                errorElement.classList.remove('pulse');
+            }
+
+            function showVideoInfo() {
+                videoInfo.classList.remove('hidden');
+                videoInfo.classList.add('fade-in');
+            }
+
+            function hideVideoInfo() {
+                videoInfo.classList.add('hidden');
+            }
+
+            // Add keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'v') {
+                    youtubeUrl.focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
