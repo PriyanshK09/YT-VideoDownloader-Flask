@@ -22,7 +22,7 @@ app = Flask(__name__)
 CACHE_DIR = tempfile.mkdtemp(prefix='youtube_cache_')
 CACHE_DURATION = 3600  # 1 hour cache
 
-# Optimized yt-dlp configuration
+# Optimized yt-dlp configuration with bot detection avoidance
 YDL_OPTS_FAST = {
     'quiet': True,
     'no_warnings': True,
@@ -32,11 +32,37 @@ YDL_OPTS_FAST = {
     'noplaylist': True,
     'extractaudio': False,
     'socket_timeout': 10,
-    'retries': 2,
-    'fragment_retries': 2,
+    'retries': 3,
+    'fragment_retries': 3,
     'skip_unavailable_fragments': True,
     'ignoreerrors': True,
-    'no_check_certificates': True,
+    'no_check_certificates': False,
+    'age_limit': None,
+    # Enhanced headers to avoid bot detection
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+    },
+    # Use iOS client to avoid sign-in requirements
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['ios', 'web'],
+            'player_skip': ['webpage', 'configs'],
+            'skip': ['hls', 'dash']
+        }
+    },
 }
 
 def get_cache_key(url):
@@ -279,7 +305,7 @@ def download():
             temp_dir = tempfile.mkdtemp()
             
             try:
-                # Optimized yt-dlp options for download
+                # Optimized yt-dlp options for download with bot detection avoidance
                 ydl_opts_download = {
                     'quiet': True,
                     'no_warnings': True,
@@ -292,8 +318,34 @@ def download():
                     'fragment_retries': 3,
                     'skip_unavailable_fragments': True,
                     'ignoreerrors': True,
-                    'no_check_certificates': True,
+                    'no_check_certificates': False,
                     'http_chunk_size': 8192,
+                    'age_limit': None,
+                    # Enhanced headers to avoid bot detection
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Sec-Fetch-User': '?1',
+                        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                        'Sec-Ch-Ua-Mobile': '?0',
+                        'Sec-Ch-Ua-Platform': '"Windows"',
+                    },
+                    # Use iOS client to avoid sign-in requirements
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['ios', 'web'],
+                            'player_skip': ['webpage', 'configs'],
+                            'skip': ['hls', 'dash']
+                        }
+                    },
                 }
                 
                 # Download the video
