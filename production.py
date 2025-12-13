@@ -27,8 +27,10 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max request size
 app.config['TEMPLATES_AUTO_RELOAD'] = False
 
 # YouTube client configuration
+# Note: pytubefix uses 'ANDROID_VR' client by default, which doesn't require po_token
+# This helps avoid "This request was detected as a bot" errors
+YOUTUBE_CLIENT = os.getenv('YOUTUBE_CLIENT', 'ANDROID_VR')
 YOUTUBE_USE_OAUTH = os.getenv('YOUTUBE_USE_OAUTH', 'false').lower() == 'true'
-YOUTUBE_USE_PO_TOKEN = os.getenv('YOUTUBE_USE_PO_TOKEN', 'true').lower() == 'true'
 
 # Cache configuration
 CACHE_DIR = tempfile.mkdtemp(prefix='youtube_cache_')
@@ -142,7 +144,8 @@ def get_video_info():
             
             try:
                 # Extract video information using pytubefix
-                yt = YouTube(clean_url, use_po_token=YOUTUBE_USE_PO_TOKEN, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
+                # Using client that doesn't require po_token to avoid bot detection
+                yt = YouTube(clean_url, client=YOUTUBE_CLIENT, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
                 
                 # Get video title and thumbnail
                 title = yt.title
@@ -249,7 +252,8 @@ def download():
             
             try:
                 # Download the video using pytubefix
-                yt = YouTube(url, use_po_token=YOUTUBE_USE_PO_TOKEN, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
+                # Using client that doesn't require po_token to avoid bot detection
+                yt = YouTube(url, client=YOUTUBE_CLIENT, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
                 
                 # Get the stream with the specified itag
                 stream = yt.streams.get_by_itag(int(itag))
