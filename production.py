@@ -144,7 +144,7 @@ def get_video_info():
             
             try:
                 # Extract video information using pytubefix
-                # Using client that doesn't require po_token to avoid bot detection
+                # Using ANDROID_VR client which doesn't require po_token (avoids bot detection)
                 yt = YouTube(clean_url, client=YOUTUBE_CLIENT, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
                 
                 # Get video title and thumbnail
@@ -252,7 +252,7 @@ def download():
             
             try:
                 # Download the video using pytubefix
-                # Using client that doesn't require po_token to avoid bot detection
+                # Using ANDROID_VR client which doesn't require po_token (avoids bot detection)
                 yt = YouTube(url, client=YOUTUBE_CLIENT, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
                 
                 # Get the stream with the specified itag
