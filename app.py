@@ -189,7 +189,7 @@ def get_video_info():
                     audio_stream = audio_streams.first()
                     if audio_stream:
                         abr = audio_stream.abr if hasattr(audio_stream, 'abr') and audio_stream.abr else None
-                        quality = f"MP3 {abr}kbps" if abr else "MP3"
+                        quality = f"MP3 {abr}" if abr else "MP3"
                         filesize = audio_stream.filesize
                         
                         formats.append({
