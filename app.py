@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, Response
-import yt_dlp
+from pytubefix import YouTube
 import os
 import re
 from io import BytesIO
@@ -21,61 +21,6 @@ app = Flask(__name__)
 # Cache configuration
 CACHE_DIR = tempfile.mkdtemp(prefix='youtube_cache_')
 CACHE_DURATION = 3600  # 1 hour cache
-
-# Optimized yt-dlp configuration with bot detection avoidance
-YDL_OPTS_FAST = {
-    'quiet': True,
-    'no_warnings': True,
-    'extract_flat': False,
-    'no_download': True,
-    'format': 'best[height<=1080]/best',
-    'noplaylist': True,
-    'extractaudio': False,
-    'socket_timeout': 10,
-    'retries': 3,
-    'fragment_retries': 3,
-    'skip_unavailable_fragments': True,
-    'ignoreerrors': True,
-    'no_check_certificates': False,
-    'age_limit': None,
-    # Enhanced headers to avoid bot detection
-    'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-        'Sec-Fetch-User': '?1',
-        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-    },
-    # Use multiple clients to avoid sign-in requirements - try in order
-    'extractor_args': {
-        'youtube': {
-            'player_client': ['android', 'ios', 'tv_embedded', 'web'],  # Multiple clients to bypass sign-in
-            'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
-            'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
-        }
-    },
-}
-
-def get_ydl_opts_with_fallback(client_preference='android'):
-    """Get yt-dlp options with specific client preference for fallback strategies"""
-    opts = YDL_OPTS_FAST.copy()
-    opts['extractor_args'] = {
-        'youtube': {
-            'player_client': [client_preference],
-            'player_skip': ['webpage', 'configs'],
-            'skip': ['hls', 'dash']
-        }
-    }
-    return opts
 
 def get_cache_key(url):
     """Generate cache key for URL"""
@@ -198,79 +143,40 @@ def get_video_info():
                 return jsonify(cached_info)
             
             try:
-                # Extract video information with multiple fallback strategies
-                info = None
-                extraction_errors = []
+                # Extract video information using pytubefix
+                logger.info(f"Attempting extraction with pytubefix")
+                yt = YouTube(clean_url)
                 
-                # Try multiple client strategies to bypass sign-in requirements
-                client_strategies = ['android', 'ios', 'tv_embedded']
-                
-                for client in client_strategies:
-                    try:
-                        logger.info(f"Attempting extraction with {client} client")
-                        ydl_opts = get_ydl_opts_with_fallback(client)
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            info = ydl.extract_info(clean_url, download=False)
-                            
-                        # If we got valid info, break the loop
-                        if info is not None:
-                            logger.info(f"Successfully extracted info using {client} client")
-                            break
-                    except Exception as e:
-                        error_msg = str(e)
-                        logger.warning(f"Failed with {client} client: {error_msg}")
-                        extraction_errors.append(f"{client}: {error_msg}")
-                        continue
-                
-                # If all strategies failed, try the default multi-client approach
-                if info is None:
-                    try:
-                        logger.info("Attempting extraction with default multi-client strategy")
-                        with yt_dlp.YoutubeDL(YDL_OPTS_FAST) as ydl:
-                            info = ydl.extract_info(clean_url, download=False)
-                    except Exception as e:
-                        extraction_errors.append(f"default: {str(e)}")
-                
-                # Check if extraction was successful
-                if info is None:
-                    logger.error(f"All extraction attempts failed. Errors: {extraction_errors}")
-                    return jsonify({
-                        'error': 'Unable to access this video. It may be age-restricted, private, or require sign-in. Please try a different video.'
-                    }), 400
-                    
                 # Get video title and thumbnail
-                title = info.get('title', 'Unknown Title')
-                thumbnail = info.get('thumbnail', f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg')
+                title = yt.title
+                thumbnail = yt.thumbnail_url
                 
                 logger.debug(f"Video title: {title}")
                 
-                # Get available formats - optimized for speed
+                # Get available formats
                 formats = []
                 
                 # Pre-defined quality priorities for faster processing
                 quality_priorities = ['1080p', '720p', '480p', '360p', '240p']
                 seen_formats = set()
                 
-                # Process formats more efficiently
-                for fmt in info.get('formats', []):
-                    if (fmt.get('vcodec') != 'none' and 
-                        fmt.get('acodec') != 'none' and
-                        fmt.get('ext') in ['mp4'] and
-                        fmt.get('height') and
-                        fmt.get('format_id')):
-                        
-                        quality = f"{fmt.get('height')}p"
+                # Get progressive streams (video + audio combined)
+                progressive_streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc()
+                
+                for stream in progressive_streams:
+                    if stream.resolution:
+                        quality = stream.resolution
                         if quality not in seen_formats and quality in quality_priorities:
                             seen_formats.add(quality)
-                            filesize = fmt.get('filesize') or fmt.get('filesize_approx')
+                            filesize = stream.filesize
                             
                             formats.append({
                                 'type': 'video',
                                 'quality': quality,
-                                'mime_type': "video/mp4",
-                                'itag': str(fmt.get('format_id')),
-                                'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize else None,
-                                'format_id': fmt.get('format_id'),
+                                'mime_type': stream.mime_type,
+                                'itag': str(stream.itag),
+                                'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize and filesize > 0 else None,
+                                'format_id': str(stream.itag),
                                 'ext': 'mp4'
                             })
                 
@@ -278,26 +184,23 @@ def get_video_info():
                 formats.sort(key=lambda x: quality_priorities.index(x['quality']) if x['quality'] in quality_priorities else 99)
                 
                 # Get best audio format
-                for fmt in info.get('formats', []):
-                    if (fmt.get('vcodec') == 'none' and 
-                        fmt.get('acodec') != 'none' and
-                        fmt.get('ext') in ['mp4', 'm4a'] and
-                        fmt.get('format_id')):
-                        
-                        abr = fmt.get('abr', 0)
-                        quality = f"MP3 {int(abr)}kbps" if abr else "MP3"
-                        filesize = fmt.get('filesize') or fmt.get('filesize_approx')
+                audio_streams = yt.streams.filter(only_audio=True).order_by('abr').desc()
+                if audio_streams:
+                    audio_stream = audio_streams.first()
+                    if audio_stream:
+                        abr = audio_stream.abr if hasattr(audio_stream, 'abr') and audio_stream.abr else None
+                        quality = f"MP3 {abr}" if abr else "MP3"
+                        filesize = audio_stream.filesize
                         
                         formats.append({
                             'type': 'audio',
                             'quality': quality,
-                            'mime_type': "audio/mp4",
-                            'itag': str(fmt.get('format_id')),
-                            'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize else None,
-                            'format_id': fmt.get('format_id'),
+                            'mime_type': audio_stream.mime_type,
+                            'itag': str(audio_stream.itag),
+                            'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize and filesize > 0 else None,
+                            'format_id': str(audio_stream.itag),
                             'ext': 'mp4'
                         })
-                        break  # Only take the best audio
                 
                 logger.debug(f"Found {len(formats)} downloadable formats")
                 
@@ -316,10 +219,11 @@ def get_video_info():
                 # Cache the result
                 cache_info(cache_key, video_info)
                 
+                logger.info(f"Successfully extracted video info for: {title}")
                 return jsonify(video_info)
                 
             except Exception as e:
-                logger.error(f"yt-dlp error: {str(e)}")
+                logger.error(f"pytubefix error: {str(e)}")
                 return jsonify({
                     'error': f'Error accessing YouTube: {str(e)}'
                 }), 400
@@ -340,9 +244,9 @@ def get_video_info():
 def download():
     try:
         url = request.args.get('url')
-        format_id = request.args.get('itag')
+        itag = request.args.get('itag')
         
-        if not url or not format_id:
+        if not url or not itag:
             return jsonify({'error': 'Missing URL or format ID parameter'}), 400
             
         if not is_valid_youtube_url(url):
@@ -353,101 +257,30 @@ def download():
             temp_dir = tempfile.mkdtemp()
             
             try:
-                # Optimized yt-dlp options for download with bot detection avoidance
-                ydl_opts_download = {
-                    'quiet': True,
-                    'no_warnings': True,
-                    'format': format_id,
-                    'outtmpl': os.path.join(temp_dir, '%(title)s.%(ext)s'),
-                    'noplaylist': True,
-                    'extractaudio': False,
-                    'socket_timeout': 30,
-                    'retries': 3,
-                    'fragment_retries': 3,
-                    'skip_unavailable_fragments': True,
-                    'ignoreerrors': True,
-                    'no_check_certificates': False,
-                    'http_chunk_size': 8192,
-                    'age_limit': None,
-                    # Enhanced headers to avoid bot detection
-                    'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Accept-Encoding': 'gzip, deflate, br',
-                        'DNT': '1',
-                        'Connection': 'keep-alive',
-                        'Upgrade-Insecure-Requests': '1',
-                        'Sec-Fetch-Dest': 'document',
-                        'Sec-Fetch-Mode': 'navigate',
-                        'Sec-Fetch-Site': 'none',
-                        'Sec-Fetch-User': '?1',
-                        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-                        'Sec-Ch-Ua-Mobile': '?0',
-                        'Sec-Ch-Ua-Platform': '"Windows"',
-                    },
-                    # Use multiple clients to avoid sign-in requirements
-                    'extractor_args': {
-                        'youtube': {
-                            'player_client': ['android', 'ios', 'tv_embedded', 'web'],
-                            'player_skip': ['webpage', 'configs'],
-                            'skip': ['hls', 'dash']
-                        }
-                    },
-                }
+                # Download the video using pytubefix
+                logger.info(f"Attempting download with pytubefix")
+                yt = YouTube(url)
                 
-                # Download the video with fallback strategies
-                info = None
-                client_strategies = ['android', 'ios', 'tv_embedded']
+                # Get the stream with the specified itag
+                stream = yt.streams.get_by_itag(int(itag))
                 
-                for client in client_strategies:
-                    try:
-                        logger.info(f"Attempting download with {client} client")
-                        opts = ydl_opts_download.copy()
-                        opts['extractor_args'] = {
-                            'youtube': {
-                                'player_client': [client],
-                                'player_skip': ['webpage', 'configs'],
-                                'skip': ['hls', 'dash']
-                            }
-                        }
-                        with yt_dlp.YoutubeDL(opts) as ydl:
-                            info = ydl.extract_info(url, download=True)
-                        
-                        if info is not None:
-                            logger.info(f"Successfully downloaded using {client} client")
-                            break
-                    except Exception as e:
-                        logger.warning(f"Download failed with {client} client: {str(e)}")
-                        continue
+                if not stream:
+                    return jsonify({'error': 'Invalid format ID or stream not found'}), 400
                 
-                # If all strategies failed, try default
-                if info is None:
-                    try:
-                        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-                            info = ydl.extract_info(url, download=True)
-                    except Exception as e:
-                        logger.error(f"All download attempts failed: {str(e)}")
-                        return jsonify({'error': 'Unable to download this video. It may be age-restricted or require sign-in.'}), 500
-                    
-                # Find the downloaded file
-                downloaded_file = None
-                for root, dirs, files in os.walk(temp_dir):
-                    for file in files:
-                        if not file.endswith('.part'):
-                            downloaded_file = os.path.join(root, file)
-                            break
-                    if downloaded_file:
-                        break
+                # Download to temporary directory
+                logger.info(f"Downloading stream with itag: {itag}")
+                output_path = stream.download(output_path=temp_dir)
                 
-                if not downloaded_file or not os.path.exists(downloaded_file):
+                if not output_path or not os.path.exists(output_path):
                     return jsonify({'error': 'Download failed or file not found'}), 500
                 
                 # Get file info
-                filename = os.path.basename(downloaded_file)
+                filename = os.path.basename(output_path)
+                
+                logger.info(f"Download complete: {filename}")
                 
                 # Read the file into memory
-                with open(downloaded_file, 'rb') as f:
+                with open(output_path, 'rb') as f:
                     file_data = f.read()
                 
                 # Determine MIME type
