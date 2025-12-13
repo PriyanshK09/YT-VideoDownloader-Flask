@@ -26,7 +26,7 @@ app.config['TEMPLATES_AUTO_RELOAD'] = False
 CACHE_DIR = tempfile.mkdtemp(prefix='youtube_cache_')
 CACHE_DURATION = 3600  # 1 hour cache
 
-# Optimized yt-dlp configuration for production
+# Optimized yt-dlp configuration for production with bot detection avoidance
 YDL_OPTS_FAST = {
     'quiet': True,
     'no_warnings': True,
@@ -41,12 +41,13 @@ YDL_OPTS_FAST = {
     'skip_unavailable_fragments': True,
     'ignoreerrors': False,
     'no_check_certificates': False,
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'age_limit': None,
+    # Enhanced headers to avoid bot detection
     'http_headers': {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
         'DNT': '1',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
@@ -54,10 +55,18 @@ YDL_OPTS_FAST = {
         'Sec-Fetch-Mode': 'navigate',
         'Sec-Fetch-Site': 'none',
         'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0',
+        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
     },
-    'cookiefile': None,
-    'no_cookies': True,
+    # Use iOS client to avoid sign-in requirements
+    'extractor_args': {
+        'youtube': {
+            'player_client': ['ios', 'web'],  # iOS client bypasses sign-in requirements
+            'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
+            'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
+        }
+    },
 }
 
 def get_cache_key(url):
@@ -281,7 +290,7 @@ def download():
             temp_dir = tempfile.mkdtemp()
             
             try:
-                # Optimized yt-dlp options for download
+                # Optimized yt-dlp options for download with bot detection avoidance
                 ydl_opts_download = {
                     'quiet': True,
                     'no_warnings': True,
@@ -296,12 +305,13 @@ def download():
                     'ignoreerrors': False,
                     'no_check_certificates': False,
                     'http_chunk_size': 8192,
-                    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'age_limit': None,
+                    # Enhanced headers to avoid bot detection
                     'http_headers': {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                        'Accept-Language': 'en-US,en;q=0.5',
-                        'Accept-Encoding': 'gzip, deflate',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
                         'DNT': '1',
                         'Connection': 'keep-alive',
                         'Upgrade-Insecure-Requests': '1',
@@ -309,10 +319,18 @@ def download():
                         'Sec-Fetch-Mode': 'navigate',
                         'Sec-Fetch-Site': 'none',
                         'Sec-Fetch-User': '?1',
-                        'Cache-Control': 'max-age=0',
+                        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                        'Sec-Ch-Ua-Mobile': '?0',
+                        'Sec-Ch-Ua-Platform': '"Windows"',
                     },
-                    'cookiefile': None,
-                    'no_cookies': True,
+                    # Use iOS client to avoid sign-in requirements
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['ios', 'web'],  # iOS client bypasses sign-in requirements
+                            'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
+                            'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
+                        }
+                    },
                 }
                 
                 # Download the video
