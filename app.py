@@ -58,9 +58,9 @@ YDL_OPTS_FAST = {
     # Use iOS client to avoid sign-in requirements
     'extractor_args': {
         'youtube': {
-            'player_client': ['ios', 'web'],
-            'player_skip': ['webpage', 'configs'],
-            'skip': ['hls', 'dash']
+            'player_client': ['ios', 'web'],  # iOS client bypasses sign-in requirements
+            'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
+            'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
         }
     },
 }
@@ -341,9 +341,9 @@ def download():
                     # Use iOS client to avoid sign-in requirements
                     'extractor_args': {
                         'youtube': {
-                            'player_client': ['ios', 'web'],
-                            'player_skip': ['webpage', 'configs'],
-                            'skip': ['hls', 'dash']
+                            'player_client': ['ios', 'web'],  # iOS client bypasses sign-in requirements
+                            'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
+                            'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
                         }
                     },
                 }
