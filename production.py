@@ -162,7 +162,7 @@ def get_video_info():
                                 'quality': quality,
                                 'mime_type': stream.mime_type,
                                 'itag': str(stream.itag),
-                                'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize else None,
+                                'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize and filesize > 0 else None,
                                 'format_id': str(stream.itag),
                                 'ext': 'mp4'
                             })
@@ -176,7 +176,7 @@ def get_video_info():
                     audio_stream = audio_streams.first()
                     if audio_stream:
                         abr = audio_stream.abr if hasattr(audio_stream, 'abr') and audio_stream.abr else None
-                        quality = f"MP3 {abr}" if abr else "MP3"
+                        quality = f"MP3 {abr}kbps" if abr else "MP3"
                         filesize = audio_stream.filesize
                         
                         formats.append({
@@ -184,7 +184,7 @@ def get_video_info():
                             'quality': quality,
                             'mime_type': audio_stream.mime_type,
                             'itag': str(audio_stream.itag),
-                            'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize else None,
+                            'filesize_mb': round(filesize / (1024 * 1024), 1) if filesize and filesize > 0 else None,
                             'format_id': str(audio_stream.itag),
                             'ext': 'mp4'
                         })
