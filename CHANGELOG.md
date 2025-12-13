@@ -1,5 +1,31 @@
 # Changelog
 
+## [2024-12-13] - Bot Detection Fix
+
+### Fixed
+- **Fixed "This request was detected as a bot" error**
+  - Explicitly use ANDROID_VR client which doesn't require po_token
+  - Removed deprecated `use_po_token` parameter
+  - Added configurable YouTube client via environment variable
+  
+### Added
+- `.env.example` file for configuration documentation
+- `YOUTUBE_CLIENT` environment variable (default: ANDROID_VR)
+- `YOUTUBE_USE_OAUTH` environment variable for optional OAuth authentication
+
+### Technical Changes
+- Updated both `app.py` and `production.py`:
+  - Added `client` parameter to YouTube() initialization
+  - Set default client to ANDROID_VR (doesn't require po_token)
+  - Removed deprecated `use_po_token` parameter
+  - Added dotenv support for environment variable loading
+  
+### Benefits
+- Bypasses YouTube bot detection without requiring po_token
+- More reliable video fetching
+- Cleaner implementation using non-deprecated features
+- Configurable client selection via environment variables
+
 ## [2024-12-13] - YouTube Video Fetching Fix
 
 ### Changed
