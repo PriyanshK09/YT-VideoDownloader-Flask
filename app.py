@@ -207,14 +207,14 @@ def get_video_info():
                 
                 for client in client_strategies:
                     try:
-                        logger.debug(f"Attempting extraction with {client} client")
+                        logger.info(f"Attempting extraction with {client} client")
                         ydl_opts = get_ydl_opts_with_fallback(client)
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                             info = ydl.extract_info(clean_url, download=False)
                             
                         # If we got valid info, break the loop
                         if info is not None:
-                            logger.debug(f"Successfully extracted info using {client} client")
+                            logger.info(f"Successfully extracted info using {client} client")
                             break
                     except Exception as e:
                         error_msg = str(e)
@@ -225,7 +225,7 @@ def get_video_info():
                 # If all strategies failed, try the default multi-client approach
                 if info is None:
                     try:
-                        logger.debug("Attempting extraction with default multi-client strategy")
+                        logger.info("Attempting extraction with default multi-client strategy")
                         with yt_dlp.YoutubeDL(YDL_OPTS_FAST) as ydl:
                             info = ydl.extract_info(clean_url, download=False)
                     except Exception as e:
@@ -402,7 +402,7 @@ def download():
                 
                 for client in client_strategies:
                     try:
-                        logger.debug(f"Attempting download with {client} client")
+                        logger.info(f"Attempting download with {client} client")
                         opts = ydl_opts_download.copy()
                         opts['extractor_args'] = {
                             'youtube': {
@@ -415,7 +415,7 @@ def download():
                             info = ydl.extract_info(url, download=True)
                         
                         if info is not None:
-                            logger.debug(f"Successfully downloaded using {client} client")
+                            logger.info(f"Successfully downloaded using {client} client")
                             break
                     except Exception as e:
                         logger.warning(f"Download failed with {client} client: {str(e)}")
