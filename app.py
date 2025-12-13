@@ -55,15 +55,27 @@ YDL_OPTS_FAST = {
         'Sec-Ch-Ua-Mobile': '?0',
         'Sec-Ch-Ua-Platform': '"Windows"',
     },
-    # Use iOS client to avoid sign-in requirements
+    # Use multiple clients to avoid sign-in requirements - try in order
     'extractor_args': {
         'youtube': {
-            'player_client': ['ios', 'web'],  # iOS client bypasses sign-in requirements
+            'player_client': ['android', 'ios', 'tv_embedded', 'web'],  # Multiple clients to bypass sign-in
             'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
             'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
         }
     },
 }
+
+def get_ydl_opts_with_fallback(client_preference='android'):
+    """Get yt-dlp options with specific client preference for fallback strategies"""
+    opts = YDL_OPTS_FAST.copy()
+    opts['extractor_args'] = {
+        'youtube': {
+            'player_client': [client_preference],
+            'player_skip': ['webpage', 'configs'],
+            'skip': ['hls', 'dash']
+        }
+    }
+    return opts
 
 def get_cache_key(url):
     """Generate cache key for URL"""
@@ -186,9 +198,45 @@ def get_video_info():
                 return jsonify(cached_info)
             
             try:
-                # Extract video information with optimized settings
-                with yt_dlp.YoutubeDL(YDL_OPTS_FAST) as ydl:
-                    info = ydl.extract_info(clean_url, download=False)
+                # Extract video information with multiple fallback strategies
+                info = None
+                extraction_errors = []
+                
+                # Try multiple client strategies to bypass sign-in requirements
+                client_strategies = ['android', 'ios', 'tv_embedded']
+                
+                for client in client_strategies:
+                    try:
+                        logger.info(f"Attempting extraction with {client} client")
+                        ydl_opts = get_ydl_opts_with_fallback(client)
+                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                            info = ydl.extract_info(clean_url, download=False)
+                            
+                        # If we got valid info, break the loop
+                        if info is not None:
+                            logger.info(f"Successfully extracted info using {client} client")
+                            break
+                    except Exception as e:
+                        error_msg = str(e)
+                        logger.warning(f"Failed with {client} client: {error_msg}")
+                        extraction_errors.append(f"{client}: {error_msg}")
+                        continue
+                
+                # If all strategies failed, try the default multi-client approach
+                if info is None:
+                    try:
+                        logger.info("Attempting extraction with default multi-client strategy")
+                        with yt_dlp.YoutubeDL(YDL_OPTS_FAST) as ydl:
+                            info = ydl.extract_info(clean_url, download=False)
+                    except Exception as e:
+                        extraction_errors.append(f"default: {str(e)}")
+                
+                # Check if extraction was successful
+                if info is None:
+                    logger.error(f"All extraction attempts failed. Errors: {extraction_errors}")
+                    return jsonify({
+                        'error': 'Unable to access this video. It may be age-restricted, private, or require sign-in. Please try a different video.'
+                    }), 400
                     
                 # Get video title and thumbnail
                 title = info.get('title', 'Unknown Title')
@@ -338,19 +386,49 @@ def download():
                         'Sec-Ch-Ua-Mobile': '?0',
                         'Sec-Ch-Ua-Platform': '"Windows"',
                     },
-                    # Use iOS client to avoid sign-in requirements
+                    # Use multiple clients to avoid sign-in requirements
                     'extractor_args': {
                         'youtube': {
-                            'player_client': ['ios', 'web'],  # iOS client bypasses sign-in requirements
-                            'player_skip': ['webpage', 'configs'],  # Skip unnecessary parsing for speed
-                            'skip': ['hls', 'dash']  # Skip fragmented streams, use direct formats for easier downloads
+                            'player_client': ['android', 'ios', 'tv_embedded', 'web'],
+                            'player_skip': ['webpage', 'configs'],
+                            'skip': ['hls', 'dash']
                         }
                     },
                 }
                 
-                # Download the video
-                with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-                    info = ydl.extract_info(url, download=True)
+                # Download the video with fallback strategies
+                info = None
+                client_strategies = ['android', 'ios', 'tv_embedded']
+                
+                for client in client_strategies:
+                    try:
+                        logger.info(f"Attempting download with {client} client")
+                        opts = ydl_opts_download.copy()
+                        opts['extractor_args'] = {
+                            'youtube': {
+                                'player_client': [client],
+                                'player_skip': ['webpage', 'configs'],
+                                'skip': ['hls', 'dash']
+                            }
+                        }
+                        with yt_dlp.YoutubeDL(opts) as ydl:
+                            info = ydl.extract_info(url, download=True)
+                        
+                        if info is not None:
+                            logger.info(f"Successfully downloaded using {client} client")
+                            break
+                    except Exception as e:
+                        logger.warning(f"Download failed with {client} client: {str(e)}")
+                        continue
+                
+                # If all strategies failed, try default
+                if info is None:
+                    try:
+                        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+                            info = ydl.extract_info(url, download=True)
+                    except Exception as e:
+                        logger.error(f"All download attempts failed: {str(e)}")
+                        return jsonify({'error': 'Unable to download this video. It may be age-restricted or require sign-in.'}), 500
                     
                 # Find the downloaded file
                 downloaded_file = None
