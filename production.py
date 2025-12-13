@@ -11,6 +11,10 @@ from functools import lru_cache
 import hashlib
 import json
 import time
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging for production
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +25,10 @@ app = Flask(__name__)
 # Production configuration
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max request size
 app.config['TEMPLATES_AUTO_RELOAD'] = False
+
+# YouTube client configuration
+YOUTUBE_USE_OAUTH = os.getenv('YOUTUBE_USE_OAUTH', 'false').lower() == 'true'
+YOUTUBE_USE_PO_TOKEN = os.getenv('YOUTUBE_USE_PO_TOKEN', 'true').lower() == 'true'
 
 # Cache configuration
 CACHE_DIR = tempfile.mkdtemp(prefix='youtube_cache_')
@@ -134,7 +142,7 @@ def get_video_info():
             
             try:
                 # Extract video information using pytubefix
-                yt = YouTube(clean_url)
+                yt = YouTube(clean_url, use_po_token=YOUTUBE_USE_PO_TOKEN, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
                 
                 # Get video title and thumbnail
                 title = yt.title
@@ -241,7 +249,7 @@ def download():
             
             try:
                 # Download the video using pytubefix
-                yt = YouTube(url)
+                yt = YouTube(url, use_po_token=YOUTUBE_USE_PO_TOKEN, use_oauth=YOUTUBE_USE_OAUTH, allow_oauth_cache=True)
                 
                 # Get the stream with the specified itag
                 stream = yt.streams.get_by_itag(int(itag))
