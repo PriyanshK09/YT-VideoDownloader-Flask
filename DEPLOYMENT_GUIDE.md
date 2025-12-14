@@ -62,10 +62,12 @@
 
 ### Environment Variables
 
-| Key | Value |
-|-----|-------|
-| `PORT` | `5000` |
-| `PYTHON_VERSION` | `3.11` |
+| Key | Value | Description |
+|-----|-------|-------------|
+| `PORT` | `5000` | Port for the Flask application |
+| `PYTHON_VERSION` | `3.11` | Python runtime version |
+| `YOUTUBE_CLIENT` | `ANDROID_VR` | YouTube client (helps avoid bot detection) |
+| `YOUTUBE_USE_OAUTH` | `false` | Enable OAuth authentication (optional) |
 
 ## Files Created for Deployment
 
